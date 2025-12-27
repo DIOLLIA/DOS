@@ -3,23 +3,54 @@ package db
 import (
 	"context"
 	"database/sql"
-	dos "dos/internal"
+	"dos/logger"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
+	"sync/atomic"
 )
 
-func OpenDB(dsn string) *sql.DB {
+type DBClient struct {
+	DB        *sql.DB
+	Connected atomic.Bool
+}
+
+type User struct {
+	Name string `json:"username"`
+}
+
+func NewDBClient(dsn string) *DBClient {
 	db, err := sql.Open("pgx", dsn)
+
 	if err != nil {
-		log.Fatal(err)
+		logger.L.Error("cannot connect to database")
+		panic(err)
 	}
 
 	if err := db.Ping(); err != nil {
-		log.Fatal(err)
+		logger.L.Error("database not respond")
+		panic(err)
 	}
 
 	runMigrations(db)
-	return db
+
+	state := &DBClient{DB: db}
+	state.Connected.Store(true)
+	return state
+}
+
+func (s *DBClient) IsConnected() bool {
+	return s.Connected.Load()
+}
+
+func (s *DBClient) Connect() {
+	s.Connected.Store(true)
+	logger.L.Info("[DB] CONNECTED")
+}
+
+func (s *DBClient) Disconnect() {
+	s.Connected.Store(false)
+	logger.L.Info("[DB] DISCONNECTED")
+
 }
 
 func runMigrations(db *sql.DB) {
@@ -29,22 +60,23 @@ func runMigrations(db *sql.DB) {
 		username TEXT NOT NULL
 	);
 	`
+
 	if _, err := db.Exec(schema); err != nil {
 		log.Fatal(err)
 	}
-	log.Println("DB migrations OK")
+	log.Println("[DB] migrations OK")
 }
 
-func GetUser(ctx context.Context, db *sql.DB) (*dos.User, error) {
+func GetUser(ctx context.Context, db *sql.DB) (*User, error) {
 	row := db.QueryRowContext(ctx, `SELECT username FROM users WHERE id = 1`)
-	var u dos.User
+	var u User
 	if err := row.Scan(&u.Name); err != nil {
 		return nil, err
 	}
 	return &u, nil
 }
 
-func UpsertUser(ctx context.Context, db *sql.DB, u dos.User) error {
+func PutUser(ctx context.Context, db *sql.DB, u User) error {
 	_, err := db.ExecContext(ctx, `
 	INSERT INTO users (id, username)
 	VALUES (1, $1)
