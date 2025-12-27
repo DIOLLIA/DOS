@@ -17,6 +17,9 @@ type DBClient struct {
 type User struct {
 	Name string `json:"username"`
 }
+type Entry struct {
+	AdjNoun string `json:"entry"`
+}
 
 func NewDBClient(dsn string) *DBClient {
 	db, err := sql.Open("pgx", dsn)
@@ -59,6 +62,10 @@ func runMigrations(db *sql.DB) {
 		id INTEGER PRIMARY KEY CHECK (id = 1),
 		username TEXT NOT NULL
 	);
+	CREATE TABLE IF NOT EXISTS entries (
+		id SERIAL PRIMARY KEY,
+		entry TEXT NOT NULL
+	);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
@@ -76,6 +83,22 @@ func GetUser(ctx context.Context, db *sql.DB) (*User, error) {
 	return &u, nil
 }
 
+func GetEntries(ctx context.Context, db *sql.DB) (*[]string, error) {
+	rows, err := db.QueryContext(ctx, `SELECT entry FROM entries`)
+	if err != nil {
+		logger.L.Error("query error" + err.Error())
+	}
+	var entryString string
+	var entries []string
+	for rows.Next() {
+		if err := rows.Scan(&entryString); err != nil {
+			return nil, err
+		}
+		entries = append(entries, entryString)
+	}
+	return &entries, nil
+}
+
 func PutUser(ctx context.Context, db *sql.DB, u User) error {
 	_, err := db.ExecContext(ctx, `
 	INSERT INTO users (id, username)
@@ -86,7 +109,24 @@ func PutUser(ctx context.Context, db *sql.DB, u User) error {
 	return err
 }
 
+func PutEntry(ctx context.Context, db *sql.DB, entry string) error {
+	_, err := db.ExecContext(ctx, `
+	INSERT INTO entries (entry)
+	VALUES ($1)
+	ON CONFLICT (id)
+	DO UPDATE SET entry = EXCLUDED.entry
+	`, entry)
+	return err
+}
+
 func DeleteUser(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `DELETE FROM users WHERE id = 1`)
+	return err
+}
+
+func DeleteEntry(ctx context.Context, db *sql.DB, name string) error {
+	logger.L.Debug("Entry to be deleted", "entry", name)
+	_, err := db.ExecContext(ctx, `DELETE FROM entries WHERE entry = $1`, name)
+	logger.L.Error("omg", "err", err.Error())
 	return err
 }

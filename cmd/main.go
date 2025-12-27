@@ -19,6 +19,17 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("/entries", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			srv.GetEntries(w, r)
+		case http.MethodPost:
+			srv.PostEntry(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -31,10 +42,20 @@ func main() {
 	})
 
 	mux.HandleFunc("/user/{name}", func(w http.ResponseWriter, r *http.Request) {
-
-		logger.L.Info("inside GET user name")
+		username := r.PathValue("name") // dummy
+		logger.L.Debug("path parameter handled", "username", username)
 		if r.Method == http.MethodDelete {
 			srv.DeleteUser(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
+
+	mux.HandleFunc("/entries/{entry}", func(w http.ResponseWriter, r *http.Request) {
+		entry := r.PathValue("entry") // dummy
+
+		if r.Method == http.MethodDelete {
+			srv.DeleteEntry(w, r, entry)
 			return
 		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
