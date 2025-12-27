@@ -32,6 +32,7 @@ func (s *Server) GetUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			logger.L.Info("no user found", "status", http.StatusNotFound)
+			//w.WriteHeader(http.StatusNotFound) //todo if no body needed, delete http.notFound(w,r) and uncomment this line
 			http.NotFound(w, r)
 			return
 		}

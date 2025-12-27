@@ -9,18 +9,6 @@ import (
 	"os"
 )
 
-//	func logging(next http.Handler) http.Handler {
-//		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//			start := time.Now()
-//			next.ServeHTTP(w, r)
-//			log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
-//		})
-//	}
-//
-// FIXME POST CREATE USER
-// curl --header "Content-Type: application/json" --request POST --data '{"username":"xyz"}' http://localhost:8080/user
-// FIXME DELETE
-// curl --request DELETE http://localhost:8080/user/xyz
 func main() {
 	config := cfg.LoadConfig()
 
