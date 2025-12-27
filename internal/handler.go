@@ -133,6 +133,7 @@ func (s *Server) DeleteEntry(w http.ResponseWriter, r *http.Request, entry strin
 	logger.L.Debug(" [ENTRIES] DELETE invoked")
 
 	if err := DeleteEntry(r.Context(), s.DB.DB, entry); err != nil {
+		logger.L.Error("an issue occurred when entry delete", "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

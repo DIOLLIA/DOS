@@ -127,6 +127,5 @@ func DeleteUser(ctx context.Context, db *sql.DB) error {
 func DeleteEntry(ctx context.Context, db *sql.DB, name string) error {
 	logger.L.Debug("Entry to be deleted", "entry", name)
 	_, err := db.ExecContext(ctx, `DELETE FROM entries WHERE entry = $1`, name)
-	logger.L.Error("omg", "err", err.Error())
 	return err
 }
