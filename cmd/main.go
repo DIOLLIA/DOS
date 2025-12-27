@@ -46,7 +46,7 @@ func main() {
 
 	logger.L.Info("application run and listen on", "port", config.AppPort)
 
-	if err := http.ListenAndServe(":"+config.AppPort, internal.LogMW(mux)); err != nil {
+	if err := http.ListenAndServe(":"+config.AppPort, internal.LogMW(internal.CorsMW(mux))); err != nil {
 		logger.L.Error("http server stopped", "error", err)
 		os.Exit(1)
 	}
