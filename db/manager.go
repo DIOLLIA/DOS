@@ -110,6 +110,7 @@ func PutUser(ctx context.Context, db *sql.DB, u User) error {
 }
 
 func PutEntry(ctx context.Context, db *sql.DB, entry string) error {
+	logger.L.Info("[DB] PUT entry: " + entry)
 	_, err := db.ExecContext(ctx, `
 	INSERT INTO entries (entry)
 	VALUES ($1)

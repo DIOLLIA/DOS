@@ -32,7 +32,7 @@ func (s *Server) GetUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			logger.L.Info("no user found", "status", http.StatusNotFound)
-			//w.WriteHeader(http.StatusNotFound) //todo if no body needed, delete http.notFound(w,r) and uncomment this line
+			//w.WriteHeader(http.StatusNotFound) //todo if no body needed, delete http.notFound(w,r)
 			http.NotFound(w, r)
 			return
 		}
@@ -78,6 +78,20 @@ func (s *Server) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+func isEmptyResponse(entries *[]string, err error) bool {
+	str := *entries
+	logger.L.Debug("found entries", "size", len(str))
+	if len(str) == 0 {
+		return true
+	}
+	if err != nil {
+		//logger.L.Error(err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			return true
+		}
+	}
+	return false
+}
 
 func (s *Server) GetEntries(w http.ResponseWriter, r *http.Request) {
 	if !s.isConnected(w, r) {
@@ -86,13 +100,15 @@ func (s *Server) GetEntries(w http.ResponseWriter, r *http.Request) {
 	logger.L.Debug("[ENTRIES] GET")
 
 	entries, err := GetEntries(r.Context(), s.DB.DB)
+	isEmpty := isEmptyResponse(entries, err)
+	if isEmpty {
+		logger.L.Info("no entries found", "status", http.StatusNotFound)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode([]Entry{})
+		return
+	}
 	if err != nil {
-		logger.L.Error(err.Error())
-		if errors.Is(err, sql.ErrNoRows) {
-			logger.L.Info("no entries found", "status", http.StatusNotFound)
-			http.NotFound(w, r)
-			return
-		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
