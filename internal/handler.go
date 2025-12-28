@@ -78,10 +78,9 @@ func (s *Server) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-func isEmptyResponse(entries *[]string, err error) bool {
-	str := *entries
-	logger.L.Debug("found entries", "size", len(str))
-	if len(str) == 0 {
+func isEmptyResponse(entries []Entry, err error) bool {
+	logger.L.Debug("found entries", "size", len(entries))
+	if len(entries) == 0 {
 		return true
 	}
 	if err != nil {
@@ -132,24 +131,24 @@ func (s *Server) PostEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.L.Info("entry found from body", "entry", entry)
 	id, err := PutEntry(r.Context(), s.DB.DB, entry.Value)
-	entry.Id = int(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	entry.Id = int(id)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(entry)
 }
 
-func (s *Server) DeleteEntry(w http.ResponseWriter, r *http.Request, entry string) {
+func (s *Server) DeleteEntry(w http.ResponseWriter, r *http.Request, id string) {
 	if !s.isConnected(w, r) {
 		return
 	}
-	logger.L.Debug(" [ENTRIES] DELETE invoked")
+	logger.L.Debug(" [ENTRIES] DELETE invoked", "id", id)
 
-	if err := DeleteEntry(r.Context(), s.DB.DB, entry); err != nil {
+	if err := DeleteEntry(r.Context(), s.DB.DB, id); err != nil {
 		logger.L.Error("an issue occurred when entry delete", "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

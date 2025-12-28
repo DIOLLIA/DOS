@@ -51,11 +51,11 @@ func main() {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	})
 
-	mux.HandleFunc("/entries/{entry}", func(w http.ResponseWriter, r *http.Request) {
-		entry := r.PathValue("entry") // dummy
+	mux.HandleFunc("/entries/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id") // dummy
 
 		if r.Method == http.MethodDelete {
-			srv.DeleteEntry(w, r, entry)
+			srv.DeleteEntry(w, r, id)
 			return
 		}
 		w.WriteHeader(http.StatusMethodNotAllowed)

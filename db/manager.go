@@ -84,20 +84,22 @@ func GetUser(ctx context.Context, db *sql.DB) (*User, error) {
 	return &u, nil
 }
 
-func GetEntries(ctx context.Context, db *sql.DB) (*[]string, error) {
-	rows, err := db.QueryContext(ctx, `SELECT entry FROM entries`)
+func GetEntries(ctx context.Context, db *sql.DB) ([]Entry, error) {
+	rows, err := db.QueryContext(ctx, `SELECT id, entry FROM entries`)
 	if err != nil {
 		logger.L.Error("query error" + err.Error())
 	}
-	var entryString string
-	var entries []string
+	var entries []Entry
+	defer rows.Close()
+
 	for rows.Next() {
-		if err := rows.Scan(&entryString); err != nil {
+		var entry Entry
+		if err := rows.Scan(&entry.Id, &entry.Value); err != nil {
 			return nil, err
 		}
-		entries = append(entries, entryString)
+		entries = append(entries, entry)
 	}
-	return &entries, nil
+	return entries, nil
 }
 
 func PutUser(ctx context.Context, db *sql.DB, u User) error {
@@ -114,16 +116,11 @@ func PutEntry(ctx context.Context, db *sql.DB, entry string) (int64, error) {
 	logger.L.Info("[DB] PUT entry: " + entry)
 
 	var id int64
-	row := db.QueryRowContext(ctx, `
+	err := db.QueryRowContext(ctx, `
 	INSERT INTO entries (entry)
 	VALUES ($1)
-	ON CONFLICT (id)
-	DO UPDATE SET entry = EXCLUDED.entry
 RETURNING id`, entry).Scan(&id)
-	//if err != nil {
-	//	logger.L.Error("cannot get last inserted id")
-	//}
-	return id, row
+	return id, err
 }
 
 func DeleteUser(ctx context.Context, db *sql.DB) error {
@@ -131,8 +128,7 @@ func DeleteUser(ctx context.Context, db *sql.DB) error {
 	return err
 }
 
-func DeleteEntry(ctx context.Context, db *sql.DB, name string) error {
-	logger.L.Debug("Entry to be deleted", "entry", name)
-	_, err := db.ExecContext(ctx, `DELETE FROM entries WHERE entry = $1`, name)
+func DeleteEntry(ctx context.Context, db *sql.DB, id string) error {
+	_, err := db.ExecContext(ctx, `DELETE FROM entries WHERE id = $1`, id)
 	return err
 }
