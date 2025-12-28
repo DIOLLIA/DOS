@@ -18,7 +18,8 @@ type User struct {
 	Name string `json:"username"`
 }
 type Entry struct {
-	AdjNoun string `json:"entry"`
+	Id    int    `json:"id"`
+	Value string `json:"value"`
 }
 
 func NewDBClient(dsn string) *DBClient {
@@ -109,15 +110,20 @@ func PutUser(ctx context.Context, db *sql.DB, u User) error {
 	return err
 }
 
-func PutEntry(ctx context.Context, db *sql.DB, entry string) error {
+func PutEntry(ctx context.Context, db *sql.DB, entry string) (int64, error) {
 	logger.L.Info("[DB] PUT entry: " + entry)
-	_, err := db.ExecContext(ctx, `
+
+	var id int64
+	row := db.QueryRowContext(ctx, `
 	INSERT INTO entries (entry)
 	VALUES ($1)
 	ON CONFLICT (id)
 	DO UPDATE SET entry = EXCLUDED.entry
-	`, entry)
-	return err
+RETURNING id`, entry).Scan(&id)
+	//if err != nil {
+	//	logger.L.Error("cannot get last inserted id")
+	//}
+	return id, row
 }
 
 func DeleteUser(ctx context.Context, db *sql.DB) error {

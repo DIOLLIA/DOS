@@ -124,15 +124,16 @@ func (s *Server) PostEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.L.Debug("[ENTRIES] POST invoked")
-	var entryStr Entry
-	var entry string
-	if err := json.NewDecoder(r.Body).Decode(&entryStr); err != nil {
+	var entry Entry
+	if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
 		logger.L.Error(err.Error())
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-
-	if err := PutEntry(r.Context(), s.DB.DB, entryStr.AdjNoun); err != nil {
+	logger.L.Info("entry found from body", "entry", entry)
+	id, err := PutEntry(r.Context(), s.DB.DB, entry.Value)
+	entry.Id = int(id)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

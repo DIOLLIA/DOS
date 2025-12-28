@@ -15,7 +15,7 @@ DELETE /user/{name}
 `curl --request DELETE http://localhost:8080/user/xyz`
 
 POST /entries
-` curl --header "Content-Type: application/json" --request POST --data '{"entry":"white-kakao"}' http://localhost:8080/entries`
+`curl --header "Content-Type: application/json" --request POST --data '{"value":"white-kakao"}' http://localhost:8080/entries`
 
 GET /entries
 `curl --request GET http://localhost:8080/entries`
