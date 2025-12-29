@@ -5,11 +5,10 @@ import (
 	"database/sql"
 	"dos/logger"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"log"
 	"sync/atomic"
 )
 
-type DBClient struct {
+type Client struct {
 	DB        *sql.DB
 	Connected atomic.Bool
 }
@@ -22,36 +21,36 @@ type Entry struct {
 	Value string `json:"value"`
 }
 
-func NewDBClient(dsn string) *DBClient {
+func NewDBClient(dsn string) *Client {
 	db, err := sql.Open("pgx", dsn)
 
 	if err != nil {
-		logger.L.Error("cannot connect to database")
+		logger.L.Error("[DB] cannot connect to database")
 		panic(err)
 	}
 
 	if err := db.Ping(); err != nil {
-		logger.L.Error("database not respond")
+		logger.L.Error("[DB] database not respond")
 		panic(err)
 	}
 
 	runMigrations(db)
 
-	state := &DBClient{DB: db}
+	state := &Client{DB: db}
 	state.Connected.Store(true)
 	return state
 }
 
-func (s *DBClient) IsConnected() bool {
+func (s *Client) IsConnected() bool {
 	return s.Connected.Load()
 }
 
-func (s *DBClient) Connect() {
+func (s *Client) Connect() {
 	s.Connected.Store(true)
 	logger.L.Info("[DB] CONNECTED")
 }
 
-func (s *DBClient) Disconnect() {
+func (s *Client) Disconnect() {
 	s.Connected.Store(false)
 	logger.L.Info("[DB] DISCONNECTED")
 
@@ -70,24 +69,28 @@ func runMigrations(db *sql.DB) {
 	`
 
 	if _, err := db.Exec(schema); err != nil {
-		log.Fatal(err)
+		logger.L.Error("[DB] error on db migration", "error", err.Error())
+		panic(err)
 	}
-	log.Println("[DB] migrations OK")
+	logger.L.Info("[DB] migrations OK")
 }
 
 func GetUser(ctx context.Context, db *sql.DB) (*User, error) {
 	row := db.QueryRowContext(ctx, `SELECT username FROM users WHERE id = 1`)
 	var u User
 	if err := row.Scan(&u.Name); err != nil {
+		logger.L.Error("[DB] get user query error" + err.Error())
+
 		return nil, err
 	}
+
 	return &u, nil
 }
 
 func GetEntries(ctx context.Context, db *sql.DB) ([]Entry, error) {
 	rows, err := db.QueryContext(ctx, `SELECT id, entry FROM entries`)
 	if err != nil {
-		logger.L.Error("query error" + err.Error())
+		logger.L.Error("[DB] get entries query error" + err.Error())
 	}
 	var entries []Entry
 	defer rows.Close()
@@ -109,6 +112,10 @@ func PutUser(ctx context.Context, db *sql.DB, u User) error {
 	ON CONFLICT (id)
 	DO UPDATE SET username = EXCLUDED.username
 	`, u.Name)
+
+	if err != nil {
+		logger.L.Error("[DB] put user query error" + err.Error())
+	}
 	return err
 }
 
@@ -120,15 +127,25 @@ func PutEntry(ctx context.Context, db *sql.DB, entry string) (int64, error) {
 	INSERT INTO entries (entry)
 	VALUES ($1)
 RETURNING id`, entry).Scan(&id)
+
+	if err != nil {
+		logger.L.Error("[DB] put entry query error" + err.Error())
+	}
 	return id, err
 }
 
 func DeleteUser(ctx context.Context, db *sql.DB) error {
 	_, err := db.ExecContext(ctx, `DELETE FROM users WHERE id = 1`)
+	if err != nil {
+		logger.L.Error("[DB] delete user query error" + err.Error())
+	}
 	return err
 }
 
 func DeleteEntry(ctx context.Context, db *sql.DB, id string) error {
 	_, err := db.ExecContext(ctx, `DELETE FROM entries WHERE id = $1`, id)
+	if err != nil {
+		logger.L.Error("[DB] delete entry query error" + err.Error())
+	}
 	return err
 }

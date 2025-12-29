@@ -10,7 +10,7 @@ import (
 )
 
 type Server struct {
-	DB *DBClient
+	DB *Client
 }
 
 func (s *Server) isConnected(w http.ResponseWriter, r *http.Request) bool {
@@ -78,13 +78,13 @@ func (s *Server) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
 func isEmptyResponse(entries []Entry, err error) bool {
 	logger.L.Debug("found entries", "size", len(entries))
 	if len(entries) == 0 {
 		return true
 	}
 	if err != nil {
-		//logger.L.Error(err.Error())
 		if errors.Is(err, sql.ErrNoRows) {
 			return true
 		}
@@ -99,20 +99,21 @@ func (s *Server) GetEntries(w http.ResponseWriter, r *http.Request) {
 	logger.L.Debug("[ENTRIES] GET")
 
 	entries, err := GetEntries(r.Context(), s.DB.DB)
-	isEmpty := isEmptyResponse(entries, err)
-	if isEmpty {
-		logger.L.Info("no entries found", "status", http.StatusNotFound)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode([]Entry{})
-		return
-	}
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	isEmpty := isEmptyResponse(entries, err)
+	if isEmpty {
+		logger.L.Info("no entries found", "status", http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode([]Entry{})
+		return
+	}
+
 	logger.L.Debug("[ENTRIES] GET result", "entries", entries)
 	json.NewEncoder(w).Encode(entries)
 }
